@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COSMIC PLANETS - 우주 행성 사과게임</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #03030c;
+      --card-bg: rgba(13, 16, 35, 0.75);
+      --accent-cyan: #00f2fe;
+      --accent-pink: #ff007f;
+      --accent-gold: #fbbf24;
+      --accent-purple: #a855f7;
+      --font-display: 'Orbitron', sans-serif;
+      --font-body: 'Pretendard', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: #f1f5f9;
+      font-family: var(--font-body);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* 우주 배경 Canvas (별, 성운, 유성, 오로라) */
+    #bgCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* 게임 전체 컨테이너 */
+    .game-container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 660px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    /* 깔끔한 상단 바: 시간 + 재시작 */
+    .clean-header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(0, 242, 254, 0.25);
+      border-radius: 18px;
+      padding: 0.75rem 1.4rem;
+      box-shadow: 0 0 25px rgba(0, 242, 254, 0.15), inset 0 0 15px rgba(168, 85, 247, 0.15);
+    }
+
+    .timer-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .timer-icon {
+      font-size: 1.4rem;
+      filter: drop-shadow(0 0 8px var(--accent-cyan));
+      animation: pulseGlow 1.5s infinite alternate;
+    }
+
+    @keyframes pulseGlow {
+      from { transform: scale(1); filter: drop-shadow(0 0 6px var(--accent-cyan)); }
+      to { transform: scale(1.15); filter: drop-shadow(0 0 14px var(--accent-pink)); }
+    }
+
+    .timer-val {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: #00f2fe;
+      letter-spacing: 2px;
+      text-shadow: 0 0 12px rgba(0, 242, 254, 0.8), 0 0 24px rgba(0, 242, 254, 0.4);
+    }
+
+    .timer-val.warning {
+      color: #ff3366;
+      text-shadow: 0 0 16px rgba(255, 51, 102, 0.9);
+      animation: urgentShake 0.4s infinite;
+    }
+
+    @keyframes urgentShake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-2px); }
+      75% { transform: translateX(2px); }
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .btn-restart {
+      cursor: pointer;
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 0.6rem 1.4rem;
+      border-radius: 12px;
+      border: 1px solid rgba(0, 242, 254, 0.5);
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.7), rgba(168, 85, 247, 0.7));
+      color: #fff;
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-restart:hover {
+      transform: translateY(-2px) scale(1.02);
+      border-color: #00f2fe;
+      box-shadow: 0 0 25px rgba(0, 242, 254, 0.7);
+    }
+
+    .btn-restart:active {
+      transform: translateY(0) scale(0.98);
+    }
+
+    .btn-sound {
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      cursor: pointer;
+      color: #94a3b8;
+      transition: transform 0.2s, filter 0.2s;
+    }
+    .btn-sound:hover {
+      transform: scale(1.15);
+      filter: drop-shadow(0 0 8px #00f2fe);
+    }
+
+    /* 초호화 게임 보드 래퍼 (무지개 네온 보더) */
+    .board-wrapper {
+      position: relative;
+      border-radius: 24px;
+      padding: 10px;
+      background: rgba(8, 10, 24, 0.9);
+      box-shadow: 0 0 50px rgba(0, 242, 254, 0.25), 0 0 100px rgba(168, 85, 247, 0.15), inset 0 0 30px rgba(0, 0, 0, 0.9);
+      touch-action: none;
+    }
+
+    .board-wrapper::before {
+      content: '';
+      position: absolute;
+      top: -3px; left: -3px; right: -3px; bottom: -3px;
+      border-radius: 26px;
+      background: linear-gradient(60deg, #00f2fe, #a855f7, #ff007f, #fbbf24, #00f2fe);
+      background-size: 300% 300%;
+      z-index: -1;
+      animation: neonBorderFlow 6s ease infinite;
+      filter: blur(4px);
+      opacity: 0.85;
+    }
+
+    @keyframes neonBorderFlow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    #gameCanvas {
+      display: block;
+      border-radius: 16px;
+      cursor: crosshair;
+      background: radial-gradient(circle at center, rgba(15, 23, 50, 0.95) 0%, rgba(5, 7, 18, 0.98) 100%);
+    }
+
+    /* 시작 대기 / 게임오버 오버레이 */
+    .overlay-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(3, 4, 15, 0.88);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.4rem;
+      z-index: 50;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+
+    .overlay-screen.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .overlay-title {
+      font-family: var(--font-display);
+      font-size: 2.8rem;
+      font-weight: 900;
+      letter-spacing: 3px;
+      text-align: center;
+      background: linear-gradient(135deg, #00f2fe, #ff007f, #fbbf24);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 35px rgba(0, 242, 254, 0.6);
+    }
+
+    .overlay-desc {
+      font-size: 1.05rem;
+      color: #cbd5e1;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .btn-action-start {
+      cursor: pointer;
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      padding: 1rem 2.8rem;
+      border-radius: 16px;
+      border: 2px solid #00f2fe;
+      background: linear-gradient(135deg, #0284c7, #9333ea, #e11d48);
+      background-size: 200% 200%;
+      animation: btnGlow 3s ease infinite alternate;
+      color: #fff;
+      box-shadow: 0 0 30px rgba(0, 242, 254, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.4);
+      transition: all 0.2s ease;
+    }
+
+    @keyframes btnGlow {
+      from { background-position: 0% 50%; box-shadow: 0 0 25px rgba(0, 242, 254, 0.5); }
+      to { background-position: 100% 50%; box-shadow: 0 0 45px rgba(255, 0, 127, 0.8); }
+    }
+
+    .btn-action-start:hover {
+      transform: scale(1.06);
+    }
+
+    .score-summary-box {
+      background: rgba(20, 25, 55, 0.85);
+      border: 1px solid rgba(0, 242, 254, 0.4);
+      padding: 1.2rem 2.5rem;
+      border-radius: 18px;
+      text-align: center;
+      box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+    }
+
+    .score-summary-label {
+      font-size: 0.95rem;
+      color: #94a3b8;
+      margin-bottom: 0.3rem;
+      letter-spacing: 1px;
+    }
+
+    .score-summary-val {
+      font-family: var(--font-display);
+      font-size: 2.6rem;
+      font-weight: 900;
+      color: var(--accent-gold);
+      text-shadow: 0 0 20px rgba(251, 191, 36, 0.7);
+    }
+
+    .combo-badge {
+      position: absolute;
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 900;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      animation: floatUp 0.85s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+      z-index: 60;
+      text-shadow: 0 0 20px currentColor;
+    }
+
+    @keyframes floatUp {
+      0% { opacity: 0; transform: translate(-50%, 15px) scale(0.5); }
+      30% { opacity: 1; transform: translate(-50%, -15px) scale(1.3); }
+      100% { opacity: 0; transform: translate(-50%, -55px) scale(1.0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 우주 배경 Canvas -->
+  <canvas id="bgCanvas"></canvas>
+
+  <div class="game-container">
+    <header class="clean-header">
+      <div class="timer-wrap">
+        <span class="timer-icon">⏳</span>
+        <span class="timer-val" id="timerDisplay">02:00</span>
+      </div>
+
+      <div class="header-actions">
+        <button class="btn-sound" id="btnSound" title="음소거 토글">🔊</button>
+        <button class="btn-restart" id="btnRestart">🔄 재시작</button>
+      </div>
+    </header>
+
+    <div class="board-wrapper">
+      <canvas id="gameCanvas" width="600" height="600"></canvas>
+
+      <!-- 시작 대기 화면 -->
+      <div class="overlay-screen active" id="startOverlay">
+        <h2 class="overlay-title">COSMIC PLANETS</h2>
+        <p class="overlay-desc">합이 10이 되도록 드래그하여 지우세요!<br>테트리스처럼 위에서 새로운 행성이 계속 쏟아져 채워집니다.</p>
+        <button class="btn-action-start" id="btnGameStart">🚀 탐사 시작</button>
+      </div>
+
+      <!-- 게임오버 화면 -->
+      <div class="overlay-screen" id="gameOverOverlay">
+        <h2 class="overlay-title">TIME OVER</h2>
+        <div class="score-summary-box">
+          <div class="score-summary-label">수확한 행성 코어 수</div>
+          <div class="score-summary-val" id="finalScoreVal">0</div>
+        </div>
+        <button class="btn-action-start" id="btnPlayAgain">다시 도전하기</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       1. WEB AUDIO API 사운드 엔진
+       ========================================================================== */
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playSuccess(count = 2) {
+        if (this.muted) return;
+        this.init();
+        const baseFreq = 340 + Math.min(count * 35, 500);
+        const osc1 = this.ctx.createOscillator();
+        const osc2 = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc1.type = 'sine';
+        osc2.type = 'triangle';
+
+        osc1.frequency.setValueAtTime(baseFreq, this.ctx.currentTime);
+        osc1.frequency.exponentialRampToValueAtTime(baseFreq * 2.2, this.ctx.currentTime + 0.3);
+
+        osc2.frequency.setValueAtTime(baseFreq * 1.5, this.ctx.currentTime);
+        osc2.frequency.exponentialRampToValueAtTime(baseFreq * 3, this.ctx.currentTime + 0.3);
+
+        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.45);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc1.start();
+        osc2.start();
+        osc1.stop(this.ctx.currentTime + 0.45);
+        osc2.stop(this.ctx.currentTime + 0.45);
+      }
+      playBlip(freq = 440) {
+        if (this.muted) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+      }
+      playFallThud() {
+        if (this.muted) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(140, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(50, this.ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.12);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.12);
+      }
+      playGameOver() {
+        if (this.muted) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(280, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(80, this.ctx.currentTime + 0.6);
+
+        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+        gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.6);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.6);
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    /* ==========================================================================
+       2. 우주 배경 렌더러
+       ========================================================================== */
+    const bgCanvas = document.getElementById('bgCanvas');
+    const bgCtx = bgCanvas.getContext('2d');
+    let stars = [];
+    let meteors = [];
+    let auroraPhase = 0;
+
+    function resizeBg() {
+      bgCanvas.width = window.innerWidth;
+      bgCanvas.height = window.innerHeight;
+      initStars();
+    }
+
+    function initStars() {
+      stars = [];
+      const count = Math.floor((bgCanvas.width * bgCanvas.height) / 2400);
+      for (let i = 0; i < count; i++) {
+        stars.push({
+          x: Math.random() * bgCanvas.width,
+          y: Math.random() * bgCanvas.height,
+          radius: Math.random() * 1.8 + 0.4,
+          alpha: Math.random(),
+          speed: Math.random() * 0.03 + 0.008,
+          color: ['#ffffff', '#67e8f9', '#f472b6', '#fef08a', '#c084fc'][Math.floor(Math.random() * 5)]
+        });
+      }
+    }
+
+    function renderBg() {
+      bgCtx.fillStyle = '#03030c';
+      bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+      auroraPhase += 0.006;
+
+      const g1 = bgCtx.createRadialGradient(
+        bgCanvas.width * (0.3 + 0.1 * Math.sin(auroraPhase)),
+        bgCanvas.height * (0.2 + 0.1 * Math.cos(auroraPhase)),
+        40,
+        bgCanvas.width * 0.3,
+        bgCanvas.height * 0.3,
+        bgCanvas.width * 0.7
+      );
+      g1.addColorStop(0, 'rgba(147, 51, 234, 0.22)');
+      g1.addColorStop(0.5, 'rgba(0, 242, 254, 0.1)');
+      g1.addColorStop(1, 'rgba(3, 3, 12, 0)');
+      bgCtx.fillStyle = g1;
+      bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+      const g2 = bgCtx.createRadialGradient(
+        bgCanvas.width * (0.7 - 0.1 * Math.cos(auroraPhase)),
+        bgCanvas.height * (0.7 + 0.1 * Math.sin(auroraPhase)),
+        60,
+        bgCanvas.width * 0.7,
+        bgCanvas.height * 0.7,
+        bgCanvas.width * 0.65
+      );
+      g2.addColorStop(0, 'rgba(236, 72, 153, 0.18)');
+      g2.addColorStop(1, 'rgba(3, 3, 12, 0)');
+      bgCtx.fillStyle = g2;
+      bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+      stars.forEach(s => {
+        s.alpha += s.speed;
+        const currentAlpha = 0.2 + Math.abs(Math.sin(s.alpha)) * 0.8;
+        bgCtx.save();
+        bgCtx.beginPath();
+        bgCtx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+        bgCtx.fillStyle = s.color;
+        bgCtx.globalAlpha = currentAlpha;
+        bgCtx.shadowBlur = 8;
+        bgCtx.shadowColor = s.color;
+        bgCtx.fill();
+        bgCtx.restore();
+      });
+
+      if (Math.random() < 0.025 && meteors.length < 4) {
+        meteors.push({
+          x: Math.random() * bgCanvas.width,
+          y: Math.random() * (bgCanvas.height * 0.5),
+          len: Math.random() * 120 + 80,
+          speed: Math.random() * 11 + 10,
+          angle: Math.PI / 4 + (Math.random() - 0.5) * 0.25,
+          opacity: 1,
+          color: ['#00f2fe', '#f43f5e', '#ffffff', '#fbbf24'][Math.floor(Math.random() * 4)]
+        });
+      }
+
+      for (let i = meteors.length - 1; i >= 0; i--) {
+        const m = meteors[i];
+        m.x += Math.cos(m.angle) * m.speed;
+        m.y += Math.sin(m.angle) * m.speed;
+        m.opacity -= 0.022;
+
+        if (m.opacity <= 0 || m.x > bgCanvas.width + 100 || m.y > bgCanvas.height + 100) {
+          meteors.splice(i, 1);
+          continue;
+        }
+
+        bgCtx.save();
+        bgCtx.strokeStyle = m.color;
+        bgCtx.globalAlpha = m.opacity;
+        bgCtx.lineWidth = 2.5;
+        bgCtx.shadowBlur = 12;
+        bgCtx.shadowColor = m.color;
+        bgCtx.beginPath();
+        bgCtx.moveTo(m.x, m.y);
+        bgCtx.lineTo(m.x - Math.cos(m.angle) * m.len, m.y - Math.sin(m.angle) * m.len);
+        bgCtx.stroke();
+        bgCtx.restore();
+      }
+
+      requestAnimationFrame(renderBg);
+    }
+
+    window.addEventListener('resize', resizeBg);
+    resizeBg();
+    renderBg();
+
+    /* ==========================================================================
+       3. 9대 고유 행성 스타일 & 디테일 텍스처 정의 (원래 행성 복구)
+       ========================================================================== */
+    const PLANET_STYLES = {
+      1: { name: 'Mercury', c1: '#ffffff', c2: '#a1a1aa', c3: '#52525b', glow: '#cbd5e1', ring: false },
+      2: { name: 'Venus',   c1: '#fffbeb', c2: '#f59e0b', c3: '#b45309', glow: '#fbbf24', ring: false },
+      3: { name: 'Earth',   c1: '#93c5fd', c2: '#2563eb', c3: '#15803d', glow: '#60a5fa', ring: false, earthDetail: true },
+      4: { name: 'Mars',    c1: '#fecaca', c2: '#ef4444', c3: '#991b1b', glow: '#f87171', ring: false },
+      5: { name: 'Jupiter', c1: '#fef08a', c2: '#d97706', c3: '#78350f', glow: '#fde047', ring: true, ringC: '#d97706' },
+      6: { name: 'Saturn',  c1: '#fef9c3', c2: '#eab308', c3: '#a16207', glow: '#facc15', ring: true, ringC: '#fef08a', doubleRing: true },
+      7: { name: 'Uranus',  c1: '#e0f2fe', c2: '#06b6d4', c3: '#0e7490', glow: '#67e8f9', ring: true, ringC: '#bae6fd' },
+      8: { name: 'Neptune', c1: '#c7d2fe', c2: '#6366f1', c3: '#312e81', glow: '#818cf8', ring: false },
+      9: { name: 'Pluto',   c1: '#fce7f3', c2: '#ec4899', c3: '#831843', glow: '#f472b6', ring: false }
+    };
+
+    /* ==========================================================================
+       4. 게임 코어 로직 & 테트리스 낙하 물리 시스템
+       ========================================================================== */
+    const ROWS = 12;
+    const COLS = 12;
+    const INITIAL_TIME = 120;
+    const BONUS_TIME = 3;
+
+    const gameCanvas = document.getElementById('gameCanvas');
+    const ctx = gameCanvas.getContext('2d');
+    const CELL_SIZE = gameCanvas.width / COLS; // 50px
+
+    const timerDisplay = document.getElementById('timerDisplay');
+    const btnRestart = document.getElementById('btnRestart');
+    const btnSound = document.getElementById('btnSound');
+    const startOverlay = document.getElementById('startOverlay');
+    const btnGameStart = document.getElementById('btnGameStart');
+    const gameOverOverlay = document.getElementById('gameOverOverlay');
+    const finalScoreVal = document.getElementById('finalScoreVal');
+    const btnPlayAgain = document.getElementById('btnPlayAgain');
+
+    let board = [];
+    let score = 0;
+    let timeLeft = INITIAL_TIME;
+    let timerInterval = null;
+    let isRunning = false;
+    let isGameOver = false;
+
+    let isDragging = false;
+    let dragStart = null;
+    let dragCurrent = null;
+    let selectedCells = [];
+    let currentSelectionSum = 0;
+
+    let particles = [];
+    let shockwaves = [];
+
+    class Cell {
+      constructor(r, c, num, initialY = null) {
+        this.r = r;
+        this.c = c;
+        this.num = num;
+        this.rotation = Math.random() * Math.PI * 2;
+        this.rotSpeed = (Math.random() - 0.5) * 0.02;
+        this.pulseOffset = Math.random() * Math.PI * 2;
+        this.cleared = false;
+
+        const targetY = r * CELL_SIZE;
+        this.currentY = (initialY !== null) ? initialY : targetY;
+        this.targetY = targetY;
+        this.vy = 0;
+      }
+
+      updateTarget(targetR) {
+        this.r = targetR;
+        this.targetY = targetR * CELL_SIZE;
+      }
+
+      updatePhysics() {
+        if (this.currentY < this.targetY) {
+          this.vy += 1.35;
+          this.currentY += this.vy;
+          if (this.currentY >= this.targetY) {
+            this.currentY = this.targetY;
+            this.vy = 0;
+          }
+        }
+      }
+    }
+
+    class Shockwave {
+      constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.radius = 5;
+        this.alpha = 1;
+      }
+      update() {
+        this.radius += 3.5;
+        this.alpha -= 0.045;
+      }
+      draw(c) {
+        if (this.alpha <= 0) return;
+        c.save();
+        c.beginPath();
+        c.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        c.strokeStyle = this.color;
+        c.lineWidth = 3;
+        c.globalAlpha = Math.max(0, this.alpha);
+        c.shadowBlur = 15;
+        c.shadowColor = this.color;
+        c.stroke();
+        c.restore();
+      }
+    }
+
+    class Particle {
+      constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.radius = Math.random() * 4.5 + 2;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 7 + 3;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.alpha = 1;
+        this.decay = Math.random() * 0.03 + 0.015;
+        this.trail = [];
+      }
+      update() {
+        this.trail.push({ x: this.x, y: this.y, a: this.alpha });
+        if (this.trail.length > 5) this.trail.shift();
+
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vx *= 0.96;
+        this.vy *= 0.96;
+        this.alpha -= this.decay;
+      }
+      draw(c) {
+        for (let i = 0; i < this.trail.length; i++) {
+          const t = this.trail[i];
+          c.save();
+          c.beginPath();
+          c.arc(t.x, t.y, this.radius * 0.6, 0, Math.PI * 2);
+          c.fillStyle = this.color;
+          c.globalAlpha = Math.max(0, t.a * 0.4);
+          c.fill();
+          c.restore();
+        }
+
+        c.save();
+        c.beginPath();
+        c.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        c.fillStyle = this.color;
+        c.globalAlpha = Math.max(0, this.alpha);
+        c.shadowBlur = 12;
+        c.shadowColor = this.color;
+        c.fill();
+        c.restore();
+      }
+    }
+
+    function createBoard() {
+      board = [];
+      for (let r = 0; r < ROWS; r++) {
+        board[r] = [];
+        for (let c = 0; c < COLS; c++) {
+          const num = Math.floor(Math.random() * 9) + 1;
+          board[r][c] = new Cell(r, c, num);
+        }
+      }
+      selectedCells = [];
+      particles = [];
+      shockwaves = [];
+    }
+
+    function applyGravityAndFill() {
+      for (let c = 0; c < COLS; c++) {
+        const surviving = [];
+        for (let r = 0; r < ROWS; r++) {
+          if (board[r][c] && !board[r][c].cleared) {
+            surviving.push(board[r][c]);
+          }
+        }
+
+        const missingCount = ROWS - surviving.length;
+        const newColumn = [];
+
+        for (let i = 0; i < missingCount; i++) {
+          const num = Math.floor(Math.random() * 9) + 1;
+          const startY = - (missingCount - i) * CELL_SIZE;
+          const targetR = i;
+          const newCell = new Cell(targetR, c, num, startY);
+          newCell.updateTarget(targetR);
+          newColumn.push(newCell);
+        }
+
+        for (let i = 0; i < surviving.length; i++) {
+          const cell = surviving[i];
+          const targetR = missingCount + i;
+          cell.updateTarget(targetR);
+          newColumn.push(cell);
+        }
+
+        for (let r = 0; r < ROWS; r++) {
+          board[r][c] = newColumn[r];
+        }
+      }
+
+      sound.playFallThud();
+    }
+
+    function startGameSession() {
+      createBoard();
+      score = 0;
+      timeLeft = INITIAL_TIME;
+      isRunning = true;
+      isGameOver = false;
+
+      startOverlay.classList.remove('active');
+      gameOverOverlay.classList.remove('active');
+
+      updateTimerDisplay();
+      startTimerTick();
+      sound.init();
+    }
+
+    function startTimerTick() {
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        if (!isRunning || isGameOver) return;
+        timeLeft--;
+        if (timeLeft <= 0) {
+          timeLeft = 0;
+          triggerGameOver();
+        }
+        updateTimerDisplay();
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+      const s = (timeLeft % 60).toString().padStart(2, '0');
+      timerDisplay.textContent = `${m}:${s}`;
+
+      if (timeLeft <= 15) {
+        timerDisplay.classList.add('warning');
+      } else {
+        timerDisplay.classList.remove('warning');
+      }
+    }
+
+    function triggerGameOver() {
+      isRunning = false;
+      isGameOver = true;
+      clearInterval(timerInterval);
+      sound.playGameOver();
+
+      finalScoreVal.textContent = score;
+      gameOverOverlay.classList.add('active');
+    }
+
+    let globalTick = 0;
+
+    /* ==========================================================================
+       5. 원래 행성 렌더러 (입체 구체 + 회전 텍스처 + 고리)
+       ========================================================================== */
+    function renderPlanet(c, p, size) {
+      if (p.cleared) return;
+
+      const style = PLANET_STYLES[p.num];
+      const cx = p.c * size + size / 2;
+      const cy = p.currentY + size / 2;
+      const radius = size * 0.38;
+
+      const pulse = 1 + Math.sin(globalTick * 0.04 + p.pulseOffset) * 0.04;
+      const currentRadius = radius * pulse;
+
+      c.save();
+      c.translate(cx, cy);
+
+      // 네온 오라
+      c.shadowBlur = 18;
+      c.shadowColor = style.glow;
+
+      // 3D 구체 그라데이션
+      const grad = c.createRadialGradient(
+        -currentRadius * 0.35, -currentRadius * 0.35, currentRadius * 0.08,
+        0, 0, currentRadius
+      );
+      grad.addColorStop(0, style.c1);
+      grad.addColorStop(0.35, style.glow);
+      grad.addColorStop(0.75, style.c2);
+      grad.addColorStop(1, style.c3);
+
+      c.beginPath();
+      c.arc(0, 0, currentRadius, 0, Math.PI * 2);
+      c.fillStyle = grad;
+      c.fill();
+
+      // 내부 자전 텍스처
+      c.shadowBlur = 0;
+      c.save();
+      c.rotate(p.rotation);
+      c.beginPath();
+      c.arc(0, 0, currentRadius, 0, Math.PI * 2);
+      c.clip();
+
+      c.fillStyle = style.c3;
+      c.globalAlpha = 0.55;
+      c.beginPath();
+      c.ellipse(-currentRadius * 0.1, currentRadius * 0.25, currentRadius * 0.9, currentRadius * 0.2, 0.2, 0, Math.PI * 2);
+      c.ellipse(currentRadius * 0.2, -currentRadius * 0.25, currentRadius * 0.8, currentRadius * 0.18, -0.2, 0, Math.PI * 2);
+      c.fill();
+
+      if (style.earthDetail) {
+        c.fillStyle = '#22c55e';
+        c.globalAlpha = 0.65;
+        c.beginPath();
+        c.arc(-currentRadius * 0.2, -currentRadius * 0.2, currentRadius * 0.45, 0, Math.PI * 2);
+        c.arc(currentRadius * 0.3, currentRadius * 0.3, currentRadius * 0.35, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.restore();
+
+      // 고리 행성
+      if (style.ring) {
+        c.save();
+        c.rotate(0.35);
+        c.strokeStyle = style.ringC;
+        c.lineWidth = size * 0.06;
+        c.globalAlpha = 0.85;
+        c.shadowBlur = 8;
+        c.shadowColor = style.ringC;
+        c.beginPath();
+        c.ellipse(0, 0, currentRadius * 1.55, currentRadius * 0.42, 0, 0, Math.PI * 2);
+        c.stroke();
+
+        if (style.doubleRing) {
+          c.strokeStyle = '#ffffff';
+          c.lineWidth = size * 0.02;
+          c.globalAlpha = 0.6;
+          c.beginPath();
+          c.ellipse(0, 0, currentRadius * 1.78, currentRadius * 0.48, 0, 0, Math.PI * 2);
+          c.stroke();
+        }
+        c.restore();
+      }
+
+      c.restore();
+
+      // 숫자 표기
+      c.save();
+      c.translate(cx, cy);
+      c.font = `900 ${Math.floor(size * 0.46)}px 'Orbitron', sans-serif`;
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+
+      c.strokeStyle = 'rgba(3, 4, 15, 0.95)';
+      c.lineWidth = 5;
+      c.strokeText(p.num, 0, 0);
+
+      c.fillStyle = '#ffffff';
+      c.shadowBlur = 8;
+      c.shadowColor = '#00f2fe';
+      c.fillText(p.num, 0, 0);
+      c.restore();
+    }
+
+    /* ==========================================================================
+       6. 마우스 / 터치 드래그 상호작용
+       ========================================================================== */
+    function getCanvasCoords(e) {
+      const rect = gameCanvas.getBoundingClientRect();
+      const scaleX = gameCanvas.width / rect.width;
+      const scaleY = gameCanvas.height / rect.height;
+
+      let cx, cy;
+      if (e.touches && e.touches.length > 0) {
+        cx = e.touches[0].clientX;
+        cy = e.touches[0].clientY;
+      } else {
+        cx = e.clientX;
+        cy = e.clientY;
+      }
+
+      return {
+        x: (cx - rect.left) * scaleX,
+        y: (cy - rect.top) * scaleY
+      };
+    }
+
+    function onPointerDown(e) {
+      if (!isRunning || isGameOver) return;
+      isDragging = true;
+      dragStart = getCanvasCoords(e);
+      dragCurrent = { ...dragStart };
+      sound.init();
+      recalcSelection();
+    }
+
+    function onPointerMove(e) {
+      if (!isDragging || !isRunning || isGameOver) return;
+      dragCurrent = getCanvasCoords(e);
+      recalcSelection();
+    }
+
+    function onPointerUp() {
+      if (!isDragging) return;
+      isDragging = false;
+
+      if (currentSelectionSum === 10 && selectedCells.length > 0) {
+        const count = selectedCells.length;
+        score += count;
+        timeLeft = Math.min(timeLeft + BONUS_TIME, 300);
+
+        sound.playSuccess(count);
+        triggerFloatingBadge(`+${count} CORES! (+${BONUS_TIME}s)`, dragCurrent.x, dragCurrent.y);
+
+        selectedCells.forEach(cell => {
+          cell.cleared = true;
+          const px = cell.c * CELL_SIZE + CELL_SIZE / 2;
+          const py = cell.currentY + CELL_SIZE / 2;
+          const style = PLANET_STYLES[cell.num];
+
+          shockwaves.push(new Shockwave(px, py, style.glow));
+
+          for (let i = 0; i < 20; i++) {
+            particles.push(new Particle(px, py, style.glow));
+          }
+        });
+
+        updateTimerDisplay();
+
+        setTimeout(() => {
+          applyGravityAndFill();
+        }, 120);
+      }
+
+      selectedCells = [];
+      dragStart = null;
+      dragCurrent = null;
+      currentSelectionSum = 0;
+    }
+
+    function recalcSelection() {
+      if (!dragStart || !dragCurrent) return;
+
+      const minX = Math.min(dragStart.x, dragCurrent.x);
+      const maxX = Math.max(dragStart.x, dragCurrent.x);
+      const minY = Math.min(dragStart.y, dragCurrent.y);
+      const maxY = Math.max(dragStart.y, dragCurrent.y);
+
+      const colStart = Math.max(0, Math.floor(minX / CELL_SIZE));
+      const colEnd = Math.min(COLS - 1, Math.floor(maxX / CELL_SIZE));
+      const rowStart = Math.max(0, Math.floor(minY / CELL_SIZE));
+      const rowEnd = Math.min(ROWS - 1, Math.floor(maxY / CELL_SIZE));
+
+      const prevCount = selectedCells.length;
+      selectedCells = [];
+      let sum = 0;
+
+      for (let r = rowStart; r <= rowEnd; r++) {
+        for (let c = colStart; c <= colEnd; c++) {
+          if (board[r] && board[r][c]) {
+            const cell = board[r][c];
+            if (!cell.cleared) {
+              selectedCells.push(cell);
+              sum += cell.num;
+            }
+          }
+        }
+      }
+
+      if (selectedCells.length !== prevCount) {
+        sound.playBlip(320 + sum * 28);
+      }
+
+      currentSelectionSum = sum;
+    }
+
+    function triggerFloatingBadge(text, x, y) {
+      const rect = gameCanvas.getBoundingClientRect();
+      const badge = document.createElement('div');
+      badge.className = 'combo-badge';
+      badge.textContent = text;
+      badge.style.color = '#00f2fe';
+      badge.style.left = `${(x / gameCanvas.width) * rect.width + rect.left}px`;
+      badge.style.top = `${(y / gameCanvas.height) * rect.height + rect.top}px`;
+      document.body.appendChild(badge);
+      setTimeout(() => badge.remove(), 850);
+    }
+
+    gameCanvas.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+
+    gameCanvas.addEventListener('touchstart', onPointerDown, { passive: false });
+    window.addEventListener('touchmove', onPointerMove, { passive: false });
+    window.addEventListener('touchend', onPointerUp);
+
+    /* ==========================================================================
+       7. 메인 게임 루프
+       ========================================================================== */
+    function gameLoop() {
+      globalTick++;
+      ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = board[r]?.[c];
+          if (cell && !cell.cleared) {
+            cell.updatePhysics();
+            if (isRunning && !isGameOver) {
+              cell.rotation += cell.rotSpeed;
+            }
+            renderPlanet(ctx, cell, CELL_SIZE);
+          }
+        }
+      }
+
+      for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const sw = shockwaves[i];
+        sw.update();
+        sw.draw(ctx);
+        if (sw.alpha <= 0) shockwaves.splice(i, 1);
+      }
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const pt = particles[i];
+        pt.update();
+        pt.draw(ctx);
+        if (pt.alpha <= 0) particles.splice(i, 1);
+      }
+
+      if (isDragging && dragStart && dragCurrent) {
+        const minX = Math.min(dragStart.x, dragCurrent.x);
+        const maxX = Math.max(dragStart.x, dragCurrent.x);
+        const minY = Math.min(dragStart.y, dragCurrent.y);
+        const maxY = Math.max(dragStart.y, dragCurrent.y);
+
+        const isExactTen = currentSelectionSum === 10;
+        const isOverTen = currentSelectionSum > 10;
+
+        let strokeColor = '#fbbf24';
+        let fillColor = 'rgba(251, 191, 36, 0.12)';
+
+        if (isExactTen) {
+          strokeColor = '#00f2fe';
+          fillColor = 'rgba(0, 242, 254, 0.28)';
+        } else if (isOverTen) {
+          strokeColor = '#ff0055';
+          fillColor = 'rgba(255, 0, 85, 0.2)';
+        }
+
+        ctx.save();
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = isExactTen ? 3.5 : 2.5;
+        ctx.fillStyle = fillColor;
+        ctx.shadowBlur = isExactTen ? 25 : 12;
+        ctx.shadowColor = strokeColor;
+
+        ctx.beginPath();
+        ctx.roundRect(minX, minY, maxX - minX, maxY - minY, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        if (selectedCells.length > 0) {
+          const sumText = `합: ${currentSelectionSum} ${isExactTen ? '⚡[완료]' : ''}`;
+          ctx.font = 'bold 16px "Orbitron", sans-serif';
+          const textW = ctx.measureText(sumText).width;
+          const badgeX = minX + (maxX - minX) / 2;
+          const badgeY = Math.max(26, minY - 12);
+
+          ctx.fillStyle = 'rgba(5, 7, 20, 0.95)';
+          ctx.strokeStyle = strokeColor;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(badgeX - textW / 2 - 12, badgeY - 20, textW + 24, 28, 8);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = strokeColor;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = strokeColor;
+          ctx.fillText(sumText, badgeX, badgeY - 5);
+        }
+
+        ctx.restore();
+      }
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    btnGameStart.addEventListener('click', startGameSession);
+    btnPlayAgain.addEventListener('click', startGameSession);
+    btnRestart.addEventListener('click', startGameSession);
+
+    btnSound.addEventListener('click', () => {
+      sound.muted = !sound.muted;
+      btnSound.textContent = sound.muted ? '🔇' : '🔊';
+    });
+
+    createBoard();
+    updateTimerDisplay();
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
